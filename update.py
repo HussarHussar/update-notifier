@@ -10,7 +10,7 @@ from PySide2.QtWidgets import (QApplication, QLabel,
 from PySide2.QtCore import (Qt, QThread, Signal, QDir, QProcess,
                             QCoreApplication)
 from PySide2.QtGui import (QIcon, QMovie)
-import sys, subprocess, trio, io
+import sys, subprocess, trio
 
 class UpdatePrompt(QDialog):
 
@@ -68,26 +68,16 @@ class UpdatePrompt(QDialog):
         return
 
     async def upProc(self, password, cmd, finishedState):
-#        proc = subprocess.Popen(['sudo', '-S', 'apt-get', cmd, '-y'],
-#                                stdout=subprocess.PIPE,
-#                                stderr=subprocess.STDOUT,
-#                                stdin=subprocess.PIPE)
-
         proc = await trio.open_process(['sudo', '-S', 'apt-get', cmd, '-y'],
                        stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                        stderr=subprocess.STDOUT)
         await proc.stdin.send_all((password + '\n').encode())
 
-        result = ''
         while (proc.poll() == None):
             QCoreApplication.processEvents()
             await trio.sleep(0.1)
-            #a = await proc.stdout.receive_some()
-            #a = a.decode()
-            #print(a)
-            #result = result + a
 
-        #stdout = result.stdout.decode()
+        result = ''
         result = await self.pullOutput(proc)
         self.appendToOutput(result)
         proc.terminate()
@@ -95,11 +85,6 @@ class UpdatePrompt(QDialog):
         if (cmd == 'update'):
             await self.upProc(password, 'upgrade', finishedState)
             finishedState.set()
-
-        return
-
-    async def pseudoSleep(self, intervals):
-        i = 0
         return
 
     async def pullOutput(self, proc):
@@ -138,24 +123,6 @@ class UpdatePrompt(QDialog):
             self.passError('The password field cannot be empty')
             return
 
-
-       # password = password.encode()
-       # result = subprocess.run(['sudo', '-S', 'apt-get', 'update'],
-       #                         stdout=subprocess.PIPE,
-       #                         stderr=subprocess.STDOUT, input=password)
-       # result = subprocess.run(['sudo', '-S', 'apt-get', 'upgrade', '-y'],
-       #                         stdout=subprocess.PIPE,
-       #                         stderr=subprocess.STDOUT, input=password)
-       # stdout = result.stdout.decode()
-       # currentText = self.outputBox.toPlainText()
-       # self.outputBox.setText(currentText + '\nRunning upgrades\n' + stdout)
-       # result = subprocess.run(['sudo', 'apt', 'upgrade', '-y'],
-       #                         stdout=subprocess.PIPE,
-       #                         stderr=subprocess.STDOUT, input=password)
-       # currentText = self.outputBox.toPlainText()
-       # self.outputBox.setText(currentText + '\n' + stdout)
-
-        #self.refreshIcon.stop()
         trio.run(self.asetup, password)
         self.centStack.setCurrentIndex(1)
         self.refreshIcon.stop()

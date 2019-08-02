@@ -1,0 +1,9 @@
+
+I have an async function and would like to use subprocess.Popen instead of subprocess.run() to avoid blocking the thread. Using the communicate() function blocks the thread, and I'm worried about using shell=True because a password is being passed. The current function gives me an `unsupported fileno` exception. Popen.stdin.write() causes the subprocess to hang forever as if it were never started. I can still use sudo in another terminal when this happens.
+
+
+        proc = subprocess.Popen(['sudo', '-S', 'apt-get', cmd, '-y'],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                stdin=io.BytesIO(password.encode()))
+

@@ -7,9 +7,10 @@ from PySide2.QtWidgets import (QApplication, QLabel,
                                QListWidgetItem, QGridLayout, QTextEdit,
                                QComboBox, QToolBar, QInputDialog, QAction,
                                QStackedWidget, QTextBrowser)
-from PySide2.QtCore import (Qt, QThread, Signal, QDir)
+from PySide2.QtCore import (Qt, QThread, Signal, QDir, QProcess,
+                            QCoreApplication)
 from PySide2.QtGui import (QIcon, QMovie)
-import sys, subprocess
+import sys, subprocess, trio, io
 
 class UpdatePrompt(QDialog):
 
@@ -59,9 +60,77 @@ class UpdatePrompt(QDialog):
         self.resize(450, 250)
         return
 
+    async def asetup(self, password):
+        async with trio.open_nursery() as nursery:
+            finishedState = trio.Event()
+            nursery.start_soon(self.upProc, password, 'update', finishedState)
+            #nursery.start_soon(self.KEAlive, finishedState)
+        return
+
+    async def upProc(self, password, cmd, finishedState):
+#        proc = subprocess.Popen(['sudo', '-S', 'apt-get', cmd, '-y'],
+#                                stdout=subprocess.PIPE,
+#                                stderr=subprocess.STDOUT,
+#                                stdin=subprocess.PIPE)
+
+        proc = await trio.open_process(['sudo', '-S', 'apt-get', cmd, '-y'],
+                       stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                       stderr=subprocess.STDOUT)
+        await proc.stdin.send_all((password + '\n').encode())
+
+        result = ''
+        while (proc.poll() == None):
+            QCoreApplication.processEvents()
+            await trio.sleep(0.1)
+            #a = await proc.stdout.receive_some()
+            #a = a.decode()
+            #print(a)
+            #result = result + a
+
+        #stdout = result.stdout.decode()
+        result = await self.pullOutput(proc)
+        self.appendToOutput(result)
+        proc.terminate()
+
+        if (cmd == 'update'):
+            await self.upProc(password, 'upgrade', finishedState)
+            finishedState.set()
+
+        return
+
+    async def pseudoSleep(self, intervals):
+        i = 0
+        return
+
+    async def pullOutput(self, proc):
+        x = await proc.stdout.receive_some()
+        x = x.decode()
+        result = ''
+        while (x != ''):
+            QCoreApplication.processEvents()
+            result = result + x
+            x = await proc.stdout.receive_some()
+            x = x.decode()
+        return result
+
+    async def KEAlive(self, finishedState):
+        while finishedState.is_set():
+            QCoreApplication.processEvents()
+            trio.sleep(0.1)
+        return
+
+        return
+
+    def appendToOutput(self, add):
+        currentText = self.outputBox.toPlainText()
+        self.outputBox.setText(currentText + 'Running updates\n' + add + '\n')
+        print (add)
+        return
+
     def pkgUpdates(self):
         self.centStack.setCurrentIndex(0)
         self.refreshIcon.start()
+        QCoreApplication.processEvents()
 
         password = self.inputBox.text()
 
@@ -69,20 +138,17 @@ class UpdatePrompt(QDialog):
             self.passError('The password field cannot be empty')
             return
 
-        password = password.encode()
-        result = subprocess.run(['sudo', '-S', 'apt-get', 'update'],
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, input=password)
-        stdout = result.stdout.decode()
-        currentText = self.outputBox.toPlainText()
-        self.outputBox.setText('Running updates\n' + stdout)
 
-        result = subprocess.run(['sudo', '-S', 'apt-get', 'upgrade', '-y'],
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, input=password)
-        stdout = result.stdout.decode()
-        currentText = self.outputBox.toPlainText()
-        self.outputBox.setText(currentText + '\nRunning upgrades\n' + stdout)
+       # password = password.encode()
+       # result = subprocess.run(['sudo', '-S', 'apt-get', 'update'],
+       #                         stdout=subprocess.PIPE,
+       #                         stderr=subprocess.STDOUT, input=password)
+       # result = subprocess.run(['sudo', '-S', 'apt-get', 'upgrade', '-y'],
+       #                         stdout=subprocess.PIPE,
+       #                         stderr=subprocess.STDOUT, input=password)
+       # stdout = result.stdout.decode()
+       # currentText = self.outputBox.toPlainText()
+       # self.outputBox.setText(currentText + '\nRunning upgrades\n' + stdout)
        # result = subprocess.run(['sudo', 'apt', 'upgrade', '-y'],
        #                         stdout=subprocess.PIPE,
        #                         stderr=subprocess.STDOUT, input=password)
@@ -90,7 +156,9 @@ class UpdatePrompt(QDialog):
        # self.outputBox.setText(currentText + '\n' + stdout)
 
         #self.refreshIcon.stop()
+        trio.run(self.asetup, password)
         self.centStack.setCurrentIndex(1)
+        self.refreshIcon.stop()
         return
 
     def passError(self, s):

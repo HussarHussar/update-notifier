@@ -13,7 +13,7 @@ PySide2, trio, sudo, and cron
 ## Debian Cron Addition
 `` $ sudo ./CronInstall.sh [n]``
 
-This is not a package installation it appends a cronjob to the anacrontab file using the update.py file in the current directory. It Sets the chronjob to run the update.py script at the current location every n days. The default is 30 if nothing is specified. Anacrontab also can be modified to run the update.py file if using a different distro. The update script can also be run manually.
+This is not a package installation it appends a cronjob to the anacrontab file using the update.py file in the current directory. It Sets the chronjob to run the update.py script at the current location every n days. The default is 30 if nothing is specified. Anacrontab can be modified manually on different distros. The update script can also be run manually.
 
 ## TODO
 * Handle subprocess termination after cancel button is pressed

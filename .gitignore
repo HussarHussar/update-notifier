@@ -1,0 +1,13 @@
+
+#Swap files
+*.swp
+
+design
+testfile
+testbed.py
+randoms
+
+*.lock
+*.pyc
+*.pyo
+*.toml

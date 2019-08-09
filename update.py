@@ -23,9 +23,9 @@ class UpdatePrompt(QDialog):
         layout = QVBoxLayout()
         btnLayout = QHBoxLayout()
         self.centStack = QStackedWidget()
-        updateButton = QPushButton('Update')
-        cancelButton = QPushButton('Cancel')
-        notifyLabel = QLabel('There are updates scheduled')
+        self.updateButton = QPushButton('Update')
+        self.cancelButton = QPushButton('Cancel')
+        notifyLabel = QLabel('There are upgrades scheduled')
         self.inputBox = QLineEdit()
         self.outputBox = QTextBrowser()
         #refreshIcon = QIcon.fromTheme('process-working')
@@ -36,8 +36,8 @@ class UpdatePrompt(QDialog):
         layout.addWidget(self.centStack)
         layout.addWidget(self.inputBox)
         layout.addLayout(btnLayout)
-        btnLayout.addWidget(cancelButton)
-        btnLayout.addWidget(updateButton)
+        btnLayout.addWidget(self.cancelButton)
+        btnLayout.addWidget(self.updateButton)
 
         self.centStack.addWidget(refreshAnimation)
         self.centStack.addWidget(self.outputBox)
@@ -48,14 +48,15 @@ class UpdatePrompt(QDialog):
         self.inputBox.setEchoMode(QLineEdit.Password)
         self.inputBox.setFocus()
         self.inputBox.returnPressed.connect(self.pkgUpdates)
-        updateButton.clicked.connect(self.pkgUpdates)
-        cancelButton.clicked.connect(self.cancelUpdates)
+        self.updateButton.clicked.connect(self.pkgUpdates)
+        self.cancelButton.clicked.connect(self.cancelUpdates)
+        self.updateButton.setDefault(True)
 
         self.centStack.setCurrentIndex(1)
         notifyLabel.setAlignment(Qt.AlignTop)
         self.outputBox.setReadOnly(True)
         #self.outputBox.setAlignment(Qt.AlignTop)
-        self.setWindowTitle('Package Updates')
+        self.setWindowTitle('Package Upgrades')
         self.setLayout(layout)
         self.resize(450, 250)
         return
@@ -123,9 +124,14 @@ class UpdatePrompt(QDialog):
             self.passError('The password field cannot be empty')
             return
 
+        self.inputBox.clear()
+        self.inputBox.setDisabled(True)
+        self.updateButton.setDisabled(True)
         trio.run(self.asetup, password)
         self.centStack.setCurrentIndex(1)
         self.refreshIcon.stop()
+        self.updateButton.setDisabled(False)
+        self.inputBox.setDisabled(False)
         return
 
     def passError(self, s):
@@ -143,6 +149,7 @@ class UpdatePrompt(QDialog):
         return
 
     def cancelUpdates(self):
+        #Needs way of closing subprocess during async run
         self.reject()
         return
 
